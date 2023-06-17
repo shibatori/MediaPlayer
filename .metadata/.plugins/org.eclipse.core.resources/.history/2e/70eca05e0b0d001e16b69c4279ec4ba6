@@ -1,0 +1,427 @@
+//小黑子多媒体播放器
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.Arrays;
+import javazoom.jl.decoder.JavaLayerException;
+import javazoom.jl.player.Player;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+
+public class MediaViewer extends JFrame {
+	private JLabel mediaLabel;
+	private JButton deleteImageButton;
+	private JButton playMusicButton;
+	private JButton stopMusicButton;
+	private JMenuBar menuBar;
+	private JMenu fileMenu;
+	private JMenuItem openImageMenuItem;
+	private JMenuItem openMusicMenuItem;
+	private JMenuItem exitMenuItem;
+	private JMenuItem aboutMenuItem;
+	private JMenuItem helpMenuItem;
+    private JMenuItem learnMenuItem;
+    private JMenuItem entertainmentMenuItem;
+	
+	private Player player;
+	private String currentMusicPath;
+	private boolean isPlaying;
+	private boolean hasImage;
+	private boolean hasMusic;
+
+	private JTree fileTree;
+	private DefaultTreeModel treeModel;
+	private DefaultMutableTreeNode rootNode;
+
+	private Dimension initialSize;
+
+	public MediaViewer() {
+		setTitle("小黑子多媒体播放器");
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setSize(800, 600); // 设置窗口大小
+		setLocationRelativeTo(null); // 将窗口居中显示
+
+		// Create the menu bar
+		menuBar = new JMenuBar();
+		setJMenuBar(menuBar);
+
+		// Create the file menu
+		fileMenu = new JMenu("菜单");
+		menuBar.add(fileMenu);
+
+		// Create menu items
+		openImageMenuItem = new JMenuItem("打开图片");
+		openMusicMenuItem = new JMenuItem("打开音乐");
+		exitMenuItem = new JMenuItem("退出");
+
+		// Add menu items to the file menu
+		fileMenu.add(openImageMenuItem);
+		fileMenu.add(openMusicMenuItem);
+		fileMenu.addSeparator();
+		fileMenu.add(exitMenuItem);
+
+		// Add action listeners to the menu items
+		openImageMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				openImage(null);
+			}
+		});
+
+		openMusicMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				openMusic(null);
+			}
+		});
+
+		exitMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				System.exit(0);
+			}
+		});
+
+		// Create the operations menu
+		JMenu operationsMenu = new JMenu("操作");
+		menuBar.add(operationsMenu);
+
+		// Create menu items for operations
+		JMenuItem deleteImageMenuItem = new JMenuItem("删除图片");
+		JMenuItem playMusicMenuItem = new JMenuItem("播放音乐");
+		JMenuItem stopMusicMenuItem = new JMenuItem("停止播放");
+
+		// Add menu items to the operations menu
+		operationsMenu.add(deleteImageMenuItem);
+		operationsMenu.add(playMusicMenuItem);
+		operationsMenu.add(stopMusicMenuItem);
+
+		// Add action listeners to the operations menu items
+		deleteImageMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				deleteImage();
+			}
+		});
+
+		playMusicMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				playMusic();
+			}
+		});
+
+		stopMusicMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				stopMusic();
+			}
+		});
+
+        // 创建更多选项
+        JMenu moreMenu = new JMenu("更多");
+        menuBar.add(moreMenu);
+
+        // 创建学习选项
+        learnMenuItem = new JMenuItem("学习");
+        moreMenu.add(learnMenuItem);
+
+        // 创建娱乐选项
+        entertainmentMenuItem = new JMenuItem("娱乐");
+        moreMenu.add(entertainmentMenuItem);
+
+        // 设置学习和娱乐选项的点击事件
+        ActionListener learnListener = new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                openWebPage("https://github.com/"); // 替换为学习网页的URL
+            }
+        };
+        ActionListener entertainmentListener = new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                openWebPage("https://www.bilibili.com/"); // 替换为娱乐网页的URL
+            }
+        };
+        learnMenuItem.addActionListener(learnListener);
+        entertainmentMenuItem.addActionListener(entertainmentListener);
+		
+		// 创建其他选项
+		JMenu otherMenu = new JMenu("其他");
+		menuBar.add(otherMenu);
+
+		// 创建关于选项
+		aboutMenuItem = new JMenuItem("关于");
+		otherMenu.add(aboutMenuItem);
+
+		// 创建帮助选项
+		helpMenuItem = new JMenuItem("帮助");
+		otherMenu.add(helpMenuItem);
+
+		// 设置关于和帮助选项的点击事件
+		ActionListener aboutListener = new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				showAboutDialog();
+			}
+		};
+		ActionListener helpListener = new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				showHelpDialog();
+			}
+		};
+		aboutMenuItem.addActionListener(aboutListener);
+		helpMenuItem.addActionListener(helpListener);
+
+		mediaLabel = new JLabel();
+		add(mediaLabel, BorderLayout.CENTER);
+
+		// Create a panel for the buttons
+		JPanel buttonPanel = new JPanel();
+		buttonPanel.setLayout(new GridLayout(1, 3));
+
+		// Create the buttons
+		deleteImageButton = new JButton("删除图片");
+		playMusicButton = new JButton("播放音乐");
+		stopMusicButton = new JButton("停止播放");
+
+		// Set buttons' initial state
+		deleteImageButton.setEnabled(false);
+		playMusicButton.setEnabled(false);
+		stopMusicButton.setEnabled(false);
+
+		// Add action listeners to the buttons
+		deleteImageButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				deleteImage();
+			}
+		});
+
+		playMusicButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				playMusic();
+			}
+		});
+
+		stopMusicButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				stopMusic();
+			}
+		});
+
+		// Add action listeners to the menu items
+		openImageMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser fileChooser = new JFileChooser();
+				fileChooser.setFileFilter(new FileNameExtensionFilter("Images", "jpg", "jpeg", "png"));
+				int result = fileChooser.showOpenDialog(MediaViewer.this);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					File selectedFile = fileChooser.getSelectedFile();
+					openImage(selectedFile);
+				}
+			}
+		});
+
+		openMusicMenuItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser fileChooser = new JFileChooser();
+				fileChooser.setFileFilter(new FileNameExtensionFilter("MP3 Files", "mp3"));
+				int result = fileChooser.showOpenDialog(MediaViewer.this);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					File selectedFile = fileChooser.getSelectedFile();
+					openMusic(selectedFile);
+				}
+			}
+		});
+
+		// Add the buttons to the panel
+		buttonPanel.add(deleteImageButton);
+		buttonPanel.add(playMusicButton);
+		buttonPanel.add(stopMusicButton);
+
+		// Add the panel to the SOUTH position of the frame
+		add(buttonPanel, BorderLayout.SOUTH);
+
+		// Create the file tree
+		rootNode = new DefaultMutableTreeNode("当前文件夹");
+		treeModel = new DefaultTreeModel(rootNode);
+		fileTree = new JTree(treeModel);
+		fileTree.setRootVisible(true);
+
+		// Add the file tree to the frame
+		JScrollPane treeScrollPane = new JScrollPane(fileTree);
+		add(treeScrollPane, BorderLayout.WEST);
+
+		// Add tree selection listener
+		fileTree.addTreeSelectionListener(e -> {
+			DefaultMutableTreeNode node = (DefaultMutableTreeNode) fileTree.getLastSelectedPathComponent();
+			if (node == null)
+				return;
+
+			File selectedFile = getFileFromNode(node);
+			if (selectedFile.isFile()
+					&& (selectedFile.getName().endsWith(".jpg") || selectedFile.getName().endsWith(".png"))) {
+				openImage(selectedFile);
+			} else if (selectedFile.isFile() && selectedFile.getName().endsWith(".mp3")) {
+				openMusic(selectedFile);
+			}
+		});
+
+		// Get the current directory
+		File currentDirectory = new File(".");
+		populateTree(currentDirectory, rootNode);
+
+		initialSize = getSize();
+	}
+
+	// 打开指定网页
+    private void openWebPage(String url) {
+        try {
+            Desktop.getDesktop().browse(new URI(url));
+        } catch (IOException | URISyntaxException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "无法打开网页", "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+	
+	// 显示关于对话框
+	private void showAboutDialog() {
+	    JTextArea textArea = new JTextArea("可以通过菜单打开图片和音乐\n通过操作对图片和音乐进行操作\n请注意：播放的音乐暂时只支持mp3");
+	    textArea.setEditable(false);
+	    textArea.setLineWrap(true); // 设置自动换行
+	    textArea.setWrapStyleWord(true); // 设置换行策略为包裹单词
+	    JScrollPane scrollPane = new JScrollPane(textArea);
+	    scrollPane.setPreferredSize(new Dimension(400, 300)); // 设置滚动面板的大小
+
+	    JOptionPane.showMessageDialog(this, scrollPane, "关于", JOptionPane.INFORMATION_MESSAGE);
+	}
+
+	// 显示帮助对话框
+	private void showHelpDialog() {
+	    JTextArea textArea = new JTextArea("该多媒体播放器可以打开图片和播放音乐\n同时可以通过菜单或者左侧目录选择图片和音乐");
+	    textArea.setEditable(false);
+	    textArea.setLineWrap(true); // 设置自动换行
+	    textArea.setWrapStyleWord(true); // 设置换行策略为包裹单词
+	    JScrollPane scrollPane = new JScrollPane(textArea);
+	    scrollPane.setPreferredSize(new Dimension(400, 300)); // 设置滚动面板的大小
+
+	    JOptionPane.showMessageDialog(this, scrollPane, "帮助", JOptionPane.INFORMATION_MESSAGE);
+	}
+
+	private void openImage(File selectedFile) {
+		try {
+			BufferedImage image = ImageIO.read(selectedFile);
+
+			// 缩放图像以适应界面尺寸
+			int maxWidth = mediaLabel.getWidth();
+			int maxHeight = mediaLabel.getHeight();
+			int originalWidth = image.getWidth();
+			int originalHeight = image.getHeight();
+			double scaleFactor = Math.min((double) maxWidth / originalWidth, (double) maxHeight / originalHeight);
+			int scaledWidth = (int) (originalWidth * scaleFactor);
+			int scaledHeight = (int) (originalHeight * scaleFactor);
+			Image scaledImage = image.getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
+
+			ImageIcon imageIcon = new ImageIcon(scaledImage);
+			mediaLabel.setIcon(imageIcon);
+			pack(); // 调整窗口大小以适应图像
+			hasImage = true;
+			deleteImageButton.setEnabled(true); // 启用删除图片按钮
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private void deleteImage() {
+		mediaLabel.setIcon(null);
+		hasImage = false;
+		deleteImageButton.setEnabled(false); // Disable the delete image button
+		// Restore to the initial size
+		setSize(initialSize);
+	}
+
+	private void openMusic(File selectedFile) {
+		currentMusicPath = selectedFile.getAbsolutePath();
+		hasMusic = true;
+		if (!isPlaying) {
+			playMusicButton.setEnabled(true); // Enable the play music button
+			stopMusicButton.setEnabled(false); // Disable the stop music button
+		}
+	}
+
+	private void playMusic() {
+		if (currentMusicPath != null && hasMusic && !isPlaying) {
+			try {
+				FileInputStream fis = new FileInputStream(currentMusicPath);
+				player = new Player(fis);
+				Thread playerThread = new Thread(new Runnable() {
+					public void run() {
+						try {
+							isPlaying = true;
+							playMusicButton.setEnabled(false); // Disable the play music button
+							stopMusicButton.setEnabled(true); // Enable the stop music button
+							player.play();
+							isPlaying = false;
+							playMusicButton.setEnabled(true); // Enable the play music button
+							stopMusicButton.setEnabled(false); // Disable the stop music button
+						} catch (JavaLayerException e) {
+							System.err.println("Error playing the media file: " + e.getMessage());
+						}
+					}
+				});
+				playerThread.start();
+			} catch (FileNotFoundException | JavaLayerException e) {
+				System.err.println("Error opening the media file: " + e.getMessage());
+			}
+		}
+	}
+
+	private void stopMusic() {
+		if (player != null) {
+			player.close();
+			player = null;
+			isPlaying = false;
+			playMusicButton.setEnabled(true); // Enable the play music button
+			stopMusicButton.setEnabled(false); // Disable the stop music button
+		}
+	}
+
+	private void populateTree(File directory, DefaultMutableTreeNode parentNode) {
+		File[] files = directory.listFiles();
+		if (files != null) {
+			Arrays.sort(files);
+			for (File file : files) {
+				DefaultMutableTreeNode node = new DefaultMutableTreeNode(file.getName());
+				parentNode.add(node);
+				if (file.isDirectory()) {
+					populateTree(file, node);
+				}
+			}
+		}
+	}
+
+	private File getFileFromNode(DefaultMutableTreeNode node) {
+		if (node == null || node.isRoot()) {
+			return null;
+		}
+		String fileName = node.getUserObject().toString();
+		File parentFile = getFileFromNode((DefaultMutableTreeNode) node.getParent());
+		if (parentFile == null) {
+			deleteImage();
+			return new File(fileName);
+		} else {
+			deleteImage();
+			return new File(parentFile, fileName);
+		}
+	}
+
+	public static void main(String[] args) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				new MediaViewer().setVisible(true);
+			}
+		});
+	}
+}
